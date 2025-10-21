@@ -12,7 +12,7 @@ from typing import Dict, Any
 class MlogtailClient:
     """Клиент для работы с mlogtail HTTP API"""
     
-    def __init__(self, base_url: str = "http://localhost:8080"):
+    def __init__(self, base_url: str = "http://localhost:37412"):
         self.base_url = base_url.rstrip('/')
     
     def health(self) -> Dict[str, str]:
@@ -103,7 +103,7 @@ def monitor_continuous(client: MlogtailClient, interval: int = 5):
 
 def main():
     """Основная функция"""
-    client = MlogtailClient("http://localhost:8080")
+    client = MlogtailClient("http://localhost:37412")
     
     # Проверка здоровья
     try:

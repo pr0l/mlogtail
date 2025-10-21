@@ -25,7 +25,7 @@ Options:
         Mail log file path, if path is "-" then read from STDIN (default "/var/log/mail.log")
   -h    Show this help
   -http string
-        HTTP server address (e.g., :8080 or 0.0.0.0:8080) to serve stats as JSON
+        HTTP server address (e.g., :37412 or 0.0.0.0:37412) to serve stats as JSON
   -init-from-file
         Read entire log file on startup to initialize counters, then continue tailing
   -l string
@@ -57,19 +57,19 @@ Options:
 ```bash
 # Только HTTP API (рекомендуется: использовать TCP socket вместо Unix)
 # HTTP API + чтение конкретного лог-файла
-mlogtail -f /var/log/mail.log -http :8080 -l 127.0.0.1:3333 tail
+mlogtail -f /var/log/mail.log -http :37412 -l 127.0.0.1:3333 tail
 
 # HTTP API + инициализация счётчиков из всего файла
-mlogtail -f /var/log/mail.log -http :8080 -l 127.0.0.1:3333 -init-from-file tail
+mlogtail -f /var/log/mail.log -http :37412 -l 127.0.0.1:3333 -init-from-file tail
 
 # HTTP API на всех интерфейсах
-mlogtail -f /var/log/mail.log -http 0.0.0.0:8080 -l 127.0.0.1:3333 tail
+mlogtail -f /var/log/mail.log -http 0.0.0.0:37412 -l 127.0.0.1:3333 tail
 
 # HTTP API + Unix socket (для Zabbix, требует прав на /var/run)
-mlogtail -f /var/log/mail.log -http :8080 -l unix:/var/run/mlogtail.sock tail
+mlogtail -f /var/log/mail.log -http :37412 -l unix:/var/run/mlogtail.sock tail
 
 # HTTP API + альтернативный Unix socket в /tmp
-mlogtail -f /var/log/mail.log -http :8080 -l unix:/tmp/mlogtail.sock tail
+mlogtail -f /var/log/mail.log -http :37412 -l unix:/tmp/mlogtail.sock tail
 ```
 
 > **⚠️ Важно:** По умолчанию программа пытается создать Unix socket `/var/run/mlogtail.sock`. 
@@ -79,23 +79,23 @@ mlogtail -f /var/log/mail.log -http :8080 -l unix:/tmp/mlogtail.sock tail
 
 ```bash
 # Проверка работоспособности
-curl http://localhost:8080/health
+curl http://localhost:37412/health
 # {"status":"ok","version":"1.2.0"}
 
 # Получение всей статистики
-curl http://localhost:8080/stats
+curl http://localhost:37412/stats
 # {"bytes_received":1059498852,"bytes_delivered":1039967394,"received":2733,...,"queue_size":42}
 
 # Получение конкретного счетчика
-curl http://localhost:8080/counter/received
+curl http://localhost:37412/counter/received
 # {"counter":"received","value":2733}
 
 # Сброс счетчиков (POST)
-curl -X POST http://localhost:8080/reset
+curl -X POST http://localhost:37412/reset
 # {"status":"ok","message":"Counters reset"}
 
 # Получение статистики и сброс (POST)
-curl -X POST http://localhost:8080/stats_reset
+curl -X POST http://localhost:37412/stats_reset
 # {"bytes_received":1234,"bytes_delivered":5678,...,"queue_size":15}
 
 # Примечание: queue_size показывает текущий размер очереди Postfix (mailq)
@@ -108,7 +108,7 @@ curl -X POST http://localhost:8080/stats_reset
 
 ```bash
 # Сначала прочитать весь файл, потом следить за новыми записями
-mlogtail -f /var/log/mail.log -http :8080 -init-from-file tail
+mlogtail -f /var/log/mail.log -http :37412 -init-from-file tail
 ```
 
 **Как работает:**

@@ -50,7 +50,7 @@ sudo apt-get install -f  # Если есть проблемы с зависим�
 ### Проверка установки:
 ```bash
 systemctl status mlogtail
-curl http://localhost:8080/health
+curl http://localhost:37412/health
 ```
 
 ### Что устанавливает пакет

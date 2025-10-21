@@ -26,7 +26,7 @@ Options:
         Mail log file path, if the path is "-" then read from STDIN (default "/var/log/mail.log")
   -h    Show this help
   -http string
-        HTTP server address (e.g., :8080 or 0.0.0.0:8080) to serve stats as JSON
+        HTTP server address (e.g., :37412 or 0.0.0.0:37412) to serve stats as JSON
   -init-from-file
         Read entire log file on startup to initialize counters, then continue tailing
   -l string
@@ -56,21 +56,20 @@ or by `systemctl`. If a log reading process have to listen to a socket then it i
 To access statistics via HTTP API (JSON format):
 
 ```bash
-# HTTP API only (recommended: use TCP socket instead of Unix)
 # HTTP API + specific log file
-mlogtail -f /var/log/mail.log -http :8080 -l 127.0.0.1:3333 tail
+mlogtail -f /var/log/mail.log -http :37412 -l 127.0.0.1:3333 tail
 
 # HTTP API + initialize counters from entire log file
-mlogtail -f /var/log/mail.log -http :8080 -l 127.0.0.1:3333 -init-from-file tail
+mlogtail -f /var/log/mail.log -http :37412 -l 127.0.0.1:3333 -init-from-file tail
 
 # HTTP API on all interfaces
-mlogtail -f /var/log/mail.log -http 0.0.0.0:8080 -l 127.0.0.1:3333 tail
+mlogtail -f /var/log/mail.log -http 0.0.0.0:37412 -l 127.0.0.1:3333 tail
 
 # HTTP API + Unix socket (for Zabbix, requires permissions for /var/run)
-mlogtail -f /var/log/mail.log -http :8080 -l unix:/var/run/mlogtail.sock tail
+mlogtail -f /var/log/mail.log -http :37412 -l unix:/var/run/mlogtail.sock tail
 
 # HTTP API + alternative Unix socket in /tmp
-mlogtail -f /var/log/mail.log -http :8080 -l unix:/tmp/mlogtail.sock tail
+mlogtail -f /var/log/mail.log -http :37412 -l unix:/tmp/mlogtail.sock tail
 ```
 
 > **⚠️ Important:** By default, the program tries to create Unix socket `/var/run/mlogtail.sock`. 
@@ -80,23 +79,23 @@ mlogtail -f /var/log/mail.log -http :8080 -l unix:/tmp/mlogtail.sock tail
 
 ```bash
 # Health check
-curl http://localhost:8080/health
+curl http://localhost:37412/health
 # {"status":"ok","version":"1.2.0"}
 
 # Get all statistics
-curl http://localhost:8080/stats
+curl http://localhost:37412/stats
 # {"bytes_received":1059498852,"bytes_delivered":1039967394,"received":2733,...,"queue_size":42}
 
 # Get specific counter
-curl http://localhost:8080/counter/received
+curl http://localhost:37412/counter/received
 # {"counter":"received","value":2733}
 
 # Reset counters (POST)
-curl -X POST http://localhost:8080/reset
+curl -X POST http://localhost:37412/reset
 # {"status":"ok","message":"Counters reset"}
 
 # Get stats and reset (POST)
-curl -X POST http://localhost:8080/stats_reset
+curl -X POST http://localhost:37412/stats_reset
 # {"bytes_received":1234,"bytes_delivered":5678,...,"queue_size":15}
 
 # Note: queue_size shows current Postfix queue size (mailq)
@@ -109,7 +108,7 @@ curl -X POST http://localhost:8080/stats_reset
 
 ```bash
 # First read entire file, then monitor new entries
-mlogtail -f /var/log/mail.log -http :8080 -init-from-file tail
+mlogtail -f /var/log/mail.log -http :37412 -init-from-file tail
 ```
 
 **How it works:**

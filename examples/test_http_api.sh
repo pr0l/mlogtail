@@ -1,7 +1,7 @@
 #!/bin/bash
 # Пример скрипта для тестирования HTTP API mlogtail
 
-BASE_URL="http://localhost:8080"
+BASE_URL="http://localhost:37412"
 
 echo "=== Проверка здоровья сервиса ==="
 curl -s "${BASE_URL}/health" | jq .

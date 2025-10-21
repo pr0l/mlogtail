@@ -142,7 +142,7 @@ jobs:
         sudo systemctl enable mlogtail
         
         # Check status
-        curl http://localhost:8080/health
+        curl http://localhost:37412/health
         \`\`\`
         
         ## Files in this release
