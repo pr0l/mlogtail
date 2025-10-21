@@ -21,7 +21,7 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-//type Config map[string]string
+// type Config map[string]string
 type Config struct {
 	cmd           string
 	cpuprofile    string
@@ -34,6 +34,9 @@ type Config struct {
 	maillogType   string
 	socketOwner   string
 	socketMode    int
+	httpListen    string
+	httpEnabled   bool
+	initFromFile  bool
 }
 
 const (
@@ -173,12 +176,15 @@ func handleSIGINTKILL(ln net.Listener, cfg *Config) {
 }
 
 func readCmdLine(cfg *Config) {
-	var cpuprofile, listen, maillog, maillogType, socketOwner string
+	var cpuprofile, listen, maillog, maillogType, socketOwner, httpListen string
 	var socketMode int
+	var initFromFile bool
 
 	//flag.StringVar(&cpuprofile, "cpuprofile", "", "write cpu profile to file")
 	flag.StringVar(&maillog, "f", "/var/log/mail.log", "Mail log file path, if the path is \"-\" then read from STDIN")
 	flag.Bool("h", false, "Show this help")
+	flag.StringVar(&httpListen, "http", "", "HTTP server address (e.g., :8080 or 0.0.0.0:8080) to serve stats as JSON")
+	flag.BoolVar(&initFromFile, "init-from-file", false, "Read entire log file on startup to initialize counters, then continue tailing")
 	flag.StringVar(&listen, "l", "unix:/var/run/mlogtail.sock", "Log reader process is listening for commands on a socket file, or IPv4:PORT,\nor [IPv6]:PORT")
 	flag.StringVar(&socketOwner, "o", "", "Set a socket OWNER[:GROUP] while listening on a socket file")
 	flag.IntVar(&socketMode, "p", 666, "Set a socket access permissions while listening on a socket file")
@@ -187,14 +193,21 @@ func readCmdLine(cfg *Config) {
 	flag.Parse()
 
 	// create a list of explicitly set flags
+	var showHelp, showVersion bool
 	fsetFunc := func(f *flag.Flag) {
 		cfg.setFlags += f.Name
+		if f.Name == "h" {
+			showHelp = true
+		}
+		if f.Name == "v" {
+			showVersion = true
+		}
 	}
 	flag.Visit(fsetFunc)
-	if len(os.Args) == 1 || strings.Contains(cfg.setFlags, "h") {
+	if len(os.Args) == 1 || showHelp {
 		usage()
 	}
-	if strings.Contains(cfg.setFlags, "v") {
+	if showVersion {
 		fmt.Printf("%s v. %s, %s\n", PROGNAME, VERSION, runtime.Version())
 		os.Exit(0)
 	}
@@ -204,6 +217,9 @@ func readCmdLine(cfg *Config) {
 	cfg.maillog = maillog
 	cfg.maillogType = maillogType
 	cfg.socketOwner = socketOwner
+	cfg.httpListen = httpListen
+	cfg.httpEnabled = len(httpListen) > 0
+	cfg.initFromFile = initFromFile
 
 	// get not options parameter (command)
 	if flag.NArg() > 0 {
@@ -287,11 +303,48 @@ func strArrayLookup(a []string, s string) bool {
 	return false
 }
 
+// initCountersFromFile читает весь лог-файл и инициализирует счётчики
+func initCountersFromFile(filename string) error {
+	if filename == "-" {
+		return fmt.Errorf("Cannot initialize from STDIN")
+	}
+
+	file, err := os.Open(filename)
+	if err != nil {
+		return fmt.Errorf("Cannot open log file for initialization: %v", err)
+	}
+	defer file.Close()
+
+	fmt.Printf("Initializing counters from log file %s...\n", filename)
+
+	scanner := bufio.NewScanner(file)
+	lineCount := 0
+	for scanner.Scan() {
+		PostfixLineParse(scanner.Text())
+		lineCount++
+		if lineCount%10000 == 0 {
+			fmt.Printf("Processed %d lines...\n", lineCount)
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		return fmt.Errorf("Error reading log file: %v", err)
+	}
+
+	fmt.Printf("Initialization complete: processed %d lines\n", lineCount)
+	return nil
+}
+
 func tailLog(cfg *Config) {
 	ln := createListener(cfg)
 	defer closeListener(ln, cfg)
 	go handleSIGINTKILL(ln, cfg)
 	go PostfixCmgHandle(ln)
+
+	// Запускаем HTTP сервер, если указан флаг -http
+	if cfg.httpEnabled {
+		go startHTTPServer(cfg.httpListen)
+	}
 
 	tailCfg := tail.Config{
 		Location: &tail.SeekInfo{Offset: 0, Whence: 2},
@@ -307,6 +360,13 @@ func tailLog(cfg *Config) {
 	}
 
 	PostfixParserInit(cfg)
+
+	// Инициализация счётчиков из всего файла, если указан флаг
+	if cfg.initFromFile {
+		if err := initCountersFromFile(cfg.maillog); err != nil {
+			fmt.Printf("Warning: %v\n", err)
+		}
+	}
 
 	for line := range t.Lines {
 		PostfixLineParse(line.Text)

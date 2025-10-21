@@ -1,0 +1,20 @@
+# mlogtail reset service
+# Сбрасывает счётчики mlogtail без перезапуска основного сервиса
+
+[Unit]
+Description=Reset mlogtail counters
+Requires=mlogtail.service
+After=mlogtail.service
+
+[Service]
+Type=oneshot
+User=root
+Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+ExecStart=/usr/bin/curl -s -f -X POST http://127.0.0.1:37412/reset
+# Альтернативный способ через socket (если HTTP недоступен):
+# ExecStart=/usr/local/bin/mlogtail -l 127.0.0.1:3333 reset
+
+# Логирование
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=mlogtail-reset

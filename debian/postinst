@@ -1,0 +1,39 @@
+#!/bin/bash
+set -e
+
+case "$1" in
+    configure)
+        # Reload systemd daemon
+        systemctl daemon-reload || true
+        
+        # Enable and start mlogtail service automatically
+        systemctl enable mlogtail.service || true
+        systemctl start mlogtail.service || true
+        
+        # Enable and start timer for automatic counter reset
+        systemctl enable mlogtail-reset.timer || true
+        systemctl start mlogtail-reset.timer || true
+        
+        echo "mlogtail has been installed and started successfully!"
+        echo ""
+        echo "Services status:"
+        if systemctl is-active mlogtail.service >/dev/null 2>&1; then
+            echo "  ✅ mlogtail.service: running"
+        else
+            echo "  ❌ mlogtail.service: failed to start"
+        fi
+        if systemctl is-active mlogtail-reset.timer >/dev/null 2>&1; then
+            echo "  ✅ mlogtail-reset.timer: running"
+        else
+            echo "  ❌ mlogtail-reset.timer: failed to start"
+        fi
+        echo ""
+        echo "HTTP API: http://127.0.0.1:37412/health"
+        echo "Documentation: /usr/share/doc/mlogtail/"
+        echo "Logs: sudo journalctl -u mlogtail -f"
+        ;;
+esac
+
+#DEBHELPER#
+
+exit 0

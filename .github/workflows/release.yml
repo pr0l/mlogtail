@@ -1,0 +1,180 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., v1.2.0)'
+        required: true
+        type: string
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-22.04
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.21'
+
+    - name: Install build dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential devscripts debhelper
+
+    - name: Extract version from tag or input
+      id: version
+      run: |
+        if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          VERSION="${{ github.event.inputs.version }}"
+          VERSION=${VERSION#v}  # Remove 'v' prefix if present
+        else
+          VERSION=${GITHUB_REF#refs/tags/v}  # Remove 'refs/tags/v' prefix
+        fi
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        echo "tag=v$VERSION" >> $GITHUB_OUTPUT
+
+    - name: Update version in files
+      run: |
+        VERSION="${{ steps.version.outputs.version }}"
+        
+        # Update version.go
+        sed -i "s/VERSION  = \".*\"/VERSION  = \"$VERSION\"/" version.go
+        
+        # Update Makefile
+        sed -i "s/VERSION=.*/VERSION=$VERSION/" Makefile
+        
+        # Update debian/changelog
+        MAINTAINER="GitHub Actions <actions@github.com>"
+        TIMESTAMP=$(date -R)
+        cat > debian/changelog << EOF
+        mlogtail ($VERSION-1) unstable; urgency=medium
+        
+          * Release version $VERSION
+          * Automated build via GitHub Actions
+        
+         -- $MAINTAINER  $TIMESTAMP
+        
+        $(cat debian/changelog)
+        EOF
+
+    - name: Run tests
+      run: make test
+
+    - name: Build binary
+      run: make build
+
+    - name: Build DEB package
+      run: |
+        dpkg-buildpackage -us -uc -b
+        
+        # Find the generated DEB file
+        DEB_FILE=$(find .. -name "mlogtail_*.deb" -type f | head -1)
+        if [ -z "$DEB_FILE" ]; then
+          echo "Error: DEB package not found"
+          exit 1
+        fi
+        
+        # Move DEB to current directory for easier access
+        mv "$DEB_FILE" ./
+        
+        # Get the filename for later use
+        DEB_FILENAME=$(basename "$DEB_FILE")
+        echo "deb_filename=$DEB_FILENAME" >> $GITHUB_ENV
+
+    - name: Verify DEB package
+      run: |
+        echo "=== DEB Package Info ==="
+        dpkg-deb --info ./${{ env.deb_filename }}
+        
+        echo "=== DEB Package Contents ==="
+        dpkg-deb --contents ./${{ env.deb_filename }}
+
+    - name: Create checksums
+      run: |
+        sha256sum mlogtail > mlogtail.sha256
+        sha256sum ${{ env.deb_filename }} > ${{ env.deb_filename }}.sha256
+
+    - name: Generate release notes
+      id: release_notes
+      run: |
+        VERSION="${{ steps.version.outputs.version }}"
+        
+        cat > release_notes.md << EOF
+        # mlogtail v$VERSION
+        
+        ## Changes
+        
+        - Release version $VERSION
+        - Built with Go $(go version | cut -d' ' -f3)
+        - Debian package for Ubuntu 22.04+ / Debian 11+
+        
+        ## Installation
+        
+        ### From DEB package:
+        \`\`\`bash
+        wget https://github.com/${{ github.repository }}/releases/download/v$VERSION/${{ env.deb_filename }}
+        sudo dpkg -i ${{ env.deb_filename }}
+        sudo apt-get install -f  # Fix dependencies if needed
+        \`\`\`
+        
+        ### From binary:
+        \`\`\`bash
+        wget https://github.com/${{ github.repository }}/releases/download/v$VERSION/mlogtail
+        chmod +x mlogtail
+        sudo mv mlogtail /usr/local/bin/
+        \`\`\`
+        
+        ## Usage
+        
+        \`\`\`bash
+        # Start the service
+        sudo systemctl start mlogtail
+        sudo systemctl enable mlogtail
+        
+        # Check status
+        curl http://localhost:8080/health
+        \`\`\`
+        
+        ## Files in this release
+        
+        - \`mlogtail\` - Statically linked binary for Linux x86_64
+        - \`${{ env.deb_filename }}\` - Debian package
+        - \`*.sha256\` - SHA256 checksums
+        
+        See [BUILD_DEB.md](BUILD_DEB.md) for detailed installation and configuration instructions.
+        EOF
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: ${{ steps.version.outputs.tag }}
+        name: Release ${{ steps.version.outputs.tag }}
+        body_path: release_notes.md
+        draft: false
+        prerelease: false
+        files: |
+          mlogtail
+          mlogtail.sha256
+          ${{ env.deb_filename }}
+          ${{ env.deb_filename }}.sha256
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: build-artifacts-${{ steps.version.outputs.version }}
+        path: |
+          mlogtail
+          ${{ env.deb_filename }}
+          *.sha256
+        retention-days: 30

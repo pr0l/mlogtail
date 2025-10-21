@@ -1,0 +1,10 @@
+mlogtail (1.2.0-1) unstable; urgency=medium
+
+  * Initial release
+  * Added HTTP API with JSON responses
+  * Added automatic counter initialization from log files
+  * Added systemd timer for log rotation synchronization
+  * Added Postfix queue size monitoring
+  * Improved documentation and installation guides
+
+ -- Your Name <pr0l.7o@gmail.com>  Sun, 20 Oct 2025 20:00:00 +0000

@@ -1,0 +1,15 @@
+# mlogtail reset timer
+# Автоматический сброс счётчиков в полночь (при ротации логов)
+
+[Unit]
+Description=Reset mlogtail counters at log rotation time
+Requires=mlogtail.service
+
+[Timer]
+OnCalendar=daily
+# Точное время: 00:00:05 (через 5 секунд после полуночи, когда logrotate уже отработал)
+OnCalendar=*-*-* 00:00:05
+Persistent=true
+
+[Install]
+WantedBy=timers.target

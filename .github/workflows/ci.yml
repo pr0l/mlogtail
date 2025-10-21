@@ -1,0 +1,99 @@
+name: CI
+
+on:
+  push:
+    branches: [ master, main, develop ]
+  pull_request:
+    branches: [ master, main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-22.04
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.21'
+
+    - name: Cache Go modules
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cache/go-build
+          ~/go/pkg/mod
+        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          ${{ runner.os }}-go-
+
+    - name: Download dependencies
+      run: go mod download
+
+    - name: Verify dependencies
+      run: go mod verify
+
+    - name: Run vet
+      run: go vet ./...
+
+    - name: Run tests
+      run: go test -v -race -coverprofile=coverage.out ./...
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage.out
+        fail_ci_if_error: false
+
+  build:
+    runs-on: ubuntu-22.04
+    needs: test
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.21'
+
+    - name: Build binary
+      run: make build
+
+    - name: Test binary
+      run: |
+        ./mlogtail --help
+        ./mlogtail --version
+
+    - name: Install DEB build dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential devscripts debhelper
+
+    - name: Test DEB build
+      run: |
+        # Test that DEB package can be built
+        dpkg-buildpackage -us -uc -b --no-sign
+        
+        # Verify DEB package
+        DEB_FILE=$(find .. -name "mlogtail_*.deb" -type f | head -1)
+        if [ -n "$DEB_FILE" ]; then
+          echo "DEB package created: $(basename "$DEB_FILE")"
+          dpkg-deb --info "$DEB_FILE"
+        else
+          echo "Error: DEB package not found"
+          exit 1
+        fi
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v3
+      if: success()
+      with:
+        name: build-${{ github.sha }}
+        path: |
+          mlogtail
+          ../*.deb
+        retention-days: 7

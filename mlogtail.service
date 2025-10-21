@@ -1,15 +1,44 @@
-# /usr/lib/systemd/system/mlogtail.service
-# /etc/systemd/system/mlogtail.service
-
 [Unit]
-Description=mlogtail log reader process
-After=network.target
+Description=mlogtail - Postfix log monitoring with HTTP API
+Documentation=https://github.com/aadz/mlogtail
+After=network.target syslog.target
 
 [Service]
+Type=simple
 User=root
 Group=root
 WorkingDirectory=/tmp
-ExecStart=/usr/local/sbin/mlogtail -f /var/log/maillog -o root:zabbix -p 660 tail
+
+
+# Только HTTP API (без TCP socket для Zabbix)
+ExecStart=/usr/bin/mlogtail -f /var/log/mail.log -http 127.0.0.1:37412 -init-from-file tail
+
+# Альтернативные варианты запуска (закомментированы):
+# С TCP socket для Zabbix:
+# ExecStart=/usr/bin/mlogtail -f /var/log/mail.log -l 127.0.0.1:37411 -http :37412 -init-from-file tail
+#
+# Без инициализации из файла (только новые записи):
+# ExecStart=/usr/bin/mlogtail -f /var/log/mail.log -http :37412 tail
+#
+# HTTP API на всех интерфейсах:
+# ExecStart=/usr/bin/mlogtail -f /var/log/mail.log -http 0.0.0.0:37412 -init-from-file tail
+
+Restart=on-failure
+RestartSec=5s
+
+# Безопасность (упрощённая для совместимости)
+NoNewPrivileges=true
+PrivateTmp=true
+ReadOnlyPaths=/var/log
+
+# Лимиты ресурсов
+LimitNOFILE=65536
+MemoryLimit=256M
+
+# Логирование
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=mlogtail
 
 [Install]
 WantedBy=multi-user.target

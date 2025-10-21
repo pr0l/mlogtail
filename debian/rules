@@ -1,0 +1,27 @@
+#!/usr/bin/make -f
+
+%:
+	dh $@
+
+override_dh_auto_build:
+	CGO_ENABLED=0 go build -ldflags="-s -w" -o mlogtail .
+
+override_dh_auto_test:
+	go test -v ./...
+
+override_dh_auto_clean:
+	rm -f mlogtail
+
+override_dh_auto_install:
+	# Install binary
+	install -D -m 755 mlogtail debian/mlogtail/usr/bin/mlogtail
+	
+	# Install systemd service files
+	install -D -m 644 mlogtail.service debian/mlogtail/lib/systemd/system/mlogtail.service
+	install -D -m 644 mlogtail-reset.service debian/mlogtail/lib/systemd/system/mlogtail-reset.service
+	install -D -m 644 mlogtail-reset.timer debian/mlogtail/lib/systemd/system/mlogtail-reset.timer
+	
+	# Install documentation
+	install -D -m 644 README.md debian/mlogtail/usr/share/doc/mlogtail/README.md
+	install -D -m 644 README_ru.md debian/mlogtail/usr/share/doc/mlogtail/README_ru.md
+	install -D -m 644 LOGROTATION.md debian/mlogtail/usr/share/doc/mlogtail/LOGROTATION.md

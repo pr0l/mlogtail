@@ -1,0 +1,26 @@
+Source: mlogtail
+Section: admin
+Priority: optional
+Maintainer: Your Name <your@email.com>
+Build-Depends: debhelper-compat (= 13), golang-go (>= 1.18)
+Standards-Version: 4.6.1
+Homepage: https://github.com/aadz/mlogtail
+Vcs-Git: https://github.com/aadz/mlogtail.git
+Vcs-Browser: https://github.com/aadz/mlogtail
+
+Package: mlogtail
+Architecture: any
+Depends: ${misc:Depends}, curl
+Suggests: postfix
+Description: Postfix mail server log monitoring with HTTP API
+ mlogtail is a tool for monitoring Postfix mail server by reading log files
+ and counting various mail delivery parameters. It provides both traditional
+ socket interface and modern HTTP API with JSON responses.
+ .
+ Features:
+  * Real-time log monitoring with automatic log rotation handling
+  * HTTP API with JSON responses for modern monitoring systems
+  * Traditional Unix/TCP socket interface for Zabbix integration
+  * Automatic counter initialization from existing log files
+  * Systemd integration with automatic log rotation synchronization
+  * Built-in Postfix queue size monitoring

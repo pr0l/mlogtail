@@ -1,0 +1,21 @@
+#!/bin/bash
+set -e
+
+case "$1" in
+    remove|purge)
+        # Stop and disable services
+        systemctl stop mlogtail.service || true
+        systemctl disable mlogtail.service || true
+        systemctl stop mlogtail-reset.timer || true
+        systemctl disable mlogtail-reset.timer || true
+        
+        # Reload systemd daemon
+        systemctl daemon-reload || true
+        
+        echo "mlogtail has been removed."
+        ;;
+esac
+
+#DEBHELPER#
+
+exit 0
