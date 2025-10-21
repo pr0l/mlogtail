@@ -83,6 +83,8 @@ jobs:
         if [ -n "$DEB_FILE" ]; then
           echo "DEB package created: $(basename "$DEB_FILE")"
           dpkg-deb --info "$DEB_FILE"
+          # Move DEB to current directory for artifact upload
+          mv "$DEB_FILE" ./
         else
           echo "Error: DEB package not found"
           exit 1
@@ -95,5 +97,5 @@ jobs:
         name: build-${{ github.sha }}
         path: |
           mlogtail
-          ../*.deb
+          *.deb
         retention-days: 7
