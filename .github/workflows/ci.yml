@@ -65,8 +65,8 @@ jobs:
 
     - name: Test binary
       run: |
-        ./mlogtail --help
-        ./mlogtail --version
+        ./mlogtail -h
+        ./mlogtail -v
 
     - name: Install DEB build dependencies
       run: |
